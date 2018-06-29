@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec $(dirname $0)/main.scm 2> ls.stderr.log
