@@ -113,13 +113,23 @@
            (lambda (it) (string-append "file://" it)))))
 
 (define (find-lexical-definition document gensym)
+  (define (has-gensym gensyms) (not (not (member gensym gensyms))))
   (display "Looking for gensym ") (display gensym) (display " in tree-il of ")
   (display (document-uri document)) (newline)
   (tree-il-fold-with-source
     (lambda (src x result)
       (match
         x
-        (($ <let> _ _ (= (lambda (gensyms) (not (member gensym gensyms))) #f) _ _)
+        ((or ($ <let> _ _ (= has-gensym #t) _ _)
+             ($ <letrec> _ _ _ (= has-gensym #t) _ _)
+             ($ <lambda-case> _ _ _ _ _ _ (= has-gensym #t) _ _)
+             ($ <fix> _ _ (= has-gensym #t) _ _)
+             ;; Note: The documentation on <let-values> doesn't match up with
+             ;;       the implementation. It seems to only ever be generated
+             ;;       when compiling from, not to tree-il, for Scheme at least.
+             ;;       <fix> also seems to never be generated but the doc
+             ;;       matches the implementation, so it has been included here.
+             )
          (display "Found one: ") (display x) (newline)
          src)
         (_ result)))
