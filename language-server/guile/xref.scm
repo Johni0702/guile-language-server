@@ -42,6 +42,21 @@
   (define word-after (take-while not-delim after))
   (list->string (append word-before word-after)))
 
+(define (tree-il-fold-with-source down up init tree-il)
+  "tree-il-fold with an additional src as the first parameter to down and up."
+  (cdr (tree-il-fold
+    (lambda (x acc)
+      (define x-src (tree-il-src x))
+      (define src-stack (cons x-src (car acc)))
+      (define best-src (find identity src-stack))
+      (cons src-stack (down best-src x (cdr acc))))
+    (lambda (x acc)
+      (define src-stack (car acc))
+      (define best-src (find identity src-stack))
+      (cons (cdr src-stack) (down best-src x (cdr acc))))
+    (cons '() init)
+    tree-il)))
+
 (define (get-ref-at document position)
   (define target-line (position-line position))
   (define target-char (position-char position))
@@ -107,50 +122,32 @@
 (define (find-lexical-definition document gensym)
   (display "Looking for gensym ") (display gensym) (display " in tree-il of ")
   (display (document-uri document)) (newline)
-  (cdr 
-    (tree-il-fold
-      (lambda (x acc) 
-        (define x-src (tree-il-src x))
-        ;; build up stack
-        (define src-stack (if x-src (cons x-src (car acc)) (car acc)))
-        (define result (cdr acc))
-        (cons 
-          src-stack
-          (match
-            x
-            (($ <let> _ _ (= (lambda (gensyms) (not (member gensym gensyms))) #f) _ _)
-             (display "Found one: ") (display x) (newline)
-             (if (null? src-stack) #f (car src-stack)))
-            (_ result))))
-      (lambda (x acc)
-        ;; tear down stack
-        (if (null? (car acc)) acc (cons (cdar acc) (cdr acc))))
-      (cons '() #f)
-      (document-tree-il document))))
+  (tree-il-fold-with-source
+    (lambda (src x result)
+      (match
+        x
+        (($ <let> _ _ (= (lambda (gensyms) (not (member gensym gensyms))) #f) _ _)
+         (display "Found one: ") (display x) (newline)
+         src)
+        (_ result)))
+    (lambda (src x result) result)
+    #f
+    (document-tree-il document)))
 
 (define (find-tree-il-toplevel-define document name)
   (display "Looking for ") (display name) (display " in tree-il of ")
   (display (document-uri document)) (newline)
-  (cdr 
-    (tree-il-fold
-      (lambda (x acc) 
-        (define x-src (tree-il-src x))
-        ;; build up stack
-        (define src-stack (if x-src (cons x-src (car acc)) (car acc)))
-        (define result (cdr acc))
-        (cons 
-          src-stack
-          (match
-            x
-            (($ <toplevel-define> _ (= (lambda (n) (eq? n name)) #t) _)
-             (display "Found one: ") (display x) (newline)
-             (if (null? src-stack) #f (car src-stack)))
-            (_ result))))
-      (lambda (x acc)
-        ;; tear down stack
-        (if (null? (car acc)) acc (cons (cdar acc) (cdr acc))))
-      (cons '() #f)
-      (document-tree-il document))))
+  (tree-il-fold-with-source
+    (lambda (src x result)
+      (match
+        x
+        (($ <toplevel-define> _ (= (lambda (n) (eq? n name)) #t) _)
+         (display "Found one: ") (display x) (newline)
+         src)
+        (_ result)))
+    (lambda (src x result) result)
+    #f
+    (document-tree-il document)))
 
 (define (module->document documents module)
   (if module
