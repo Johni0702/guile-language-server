@@ -61,47 +61,39 @@
   (define target-line (position-line position))
   (define target-char (position-char position))
   (define tree-il (document-tree-il document))
-  (define closest
-    (or (cdr 
-          (tree-il-fold
-            (lambda (x result) 
-              (define src (source-properties->position (tree-il-src x)))
-              (define src-line (position-line src))
-              (define src-char (position-char src))
-              (if (and src-line src-char
-                       (<= src-line target-line)
-                       (<= src-char target-char)
-                       (or (> src-line (cdar result))
-                           (and (= src-line (cdar result))
-                                (> src-char (caar result))))) 
-                (cons (cons src-char src-line) x)
-                result))
-            (lambda (x result) result)
-            (cons (cons -1 -1) #f)
-            tree-il))
-        ;; In case there is no source info in the tree-il, search all of it
-        tree-il))
   (define word (string->symbol (get-word-at document position)))
   (display "Word at position: ") (display word) (newline)
-  (display "Searching for exact match in ") (display closest) (newline)
-  (tree-il-fold
-    (lambda (x result)
-      (define name (match 
-                     x
-                     (($ <toplevel-ref> _ name) name)
-                     (($ <lexical-ref> _ name _) name)
-                     (_ #f)))
-      (if (equal? name word) 
-        (begin
-          (display "Found reference: ") (display x) (newline)
-          x) 
-        result))
-    (lambda (x result) result)
-    #f
-    closest))
-
-(define (find-lexical-definition document gensym)
-  #f)
+  (cdr
+    (tree-il-fold-with-source
+      (lambda (src x result)
+        (define src-position (source-properties->position src))
+        (define src-line (position-line src-position))
+        (define src-char (position-char src-position))
+        (define name (match
+                       x
+                       (($ <toplevel-ref> _ name) name)
+                       (($ <lexical-ref> _ name _) name)
+                       (_ #f)))
+        (if (and
+              ;; Only consider exact matches
+              (equal? name word)
+              ;; And only if we got a line+char
+              src-line src-char
+              ;; which is strictly before the target location
+              (<= src-line target-line)
+              (<= src-char target-char)
+              ;; but as close as possible (with more weight on line)
+              (or (> src-line (cdar result))
+                  (and (= src-line (cdar result))
+                       (> src-char (caar result)))))
+          (begin
+            (display "Found reference ") (display x)
+            (display " at ") (display src-position) (newline)
+            (cons (cons src-char src-line) x))
+          result))
+      (lambda (x result) result)
+      (cons (cons -1 -1) #f)
+      tree-il)))
 
 (define (find-name-in-load-path name)
   (find
