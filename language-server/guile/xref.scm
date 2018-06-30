@@ -23,6 +23,7 @@
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
   #:use-module (ice-9 match)
+  #:use-module (ice-9 textual-ports)
   #:use-module (system base compile)
   #:use-module (system base language)
   #:use-module (system vm program)
@@ -141,12 +142,30 @@
     #f
     (document-tree-il document)))
 
+(define (interface->module interface-or-module)
+  (resolve-module (module-name interface-or-module) #f #:ensure #f))
+
 (define (module->document documents module)
   (if module
-    (let ((name (module-name module)))
-      (find
-        (lambda (document) (vhash-ref (document-modules document) name))
-        documents))
+    (let* ((name (module-name module))
+           (document
+             (find
+               (lambda (document) (vhash-ref (document-modules document) name))
+               documents)))
+      (if document
+        document
+        (begin
+          (display "Source module ") (display module)
+          (display " has not yet been compiled to tree-il. Compiling now...")
+          (newline)
+          (let* ((path (module-filename (interface->module module)))
+                 (empty-document (make-empty-document (path->uri path)))
+                 ;; FIXME: for files open in the editor, use its version
+                 (text (call-with-input-file path get-string-all))
+                 (filled-document (set-document-text empty-document text)))
+            (cdr (compile-single-document vlist-null vlist-null
+                                          filled-document)))))
+      )
     #f))
 
 (define (find-toplevel-definition documents document name)

@@ -34,42 +34,11 @@
   (documents state-documents set-state-documents)
   (shutdown? state-shutdown? set-state-shutdown?))
 
-(define (uri->name uri path)
-  ;; Find longest matching prefix of uri in path and use remaining part of uri
-  (string-drop
-    uri
-    (string-length
-      (fold 
-        (lambda (prefix best-prefix)
-          (if (and (> (string-length prefix) (string-length best-prefix))
-                   (string-prefix? prefix uri))
-            prefix
-            best-prefix))
-        "file://"
-        path))))
-
-(define (path->uri path)
-  (string-append 
-    "file://" 
-    (if (absolute-file-name? path)
-      path
-      ;; FIXME: breaks for any non-trivial relative path i.e. ones with dot(s)
-      ;;        also assumes (getcwd) to be absolute (which might not be true?)
-      (let ((cwd (getcwd))) 
-        (if (equal? path ".") ;; special case "." so at least that works
-          cwd
-          (string-append cwd "/" path))))
-    "/"))
-
-(define (make-empty-document state uri)
-  (define name (uri->name uri (map path->uri %load-path)))
-  (make-document uri name "" #f #f vlist-null #f '()))
-
 (define (updateDocument out state uri text)
   (define old-documents (state-documents state))
   (define old-modules (state-modules state))
   (define old-document (or (vhash-ref old-documents uri)
-                           (make-empty-document state uri)))
+                           (make-empty-document uri)))
   (define new-document (set-document-text old-document text))
   (match
     (compileDocument old-modules old-documents new-document)

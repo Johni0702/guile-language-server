@@ -35,6 +35,9 @@
             env document-env set-document-env
             diagnostics document-diagnostics set-document-diagnostics 
 
+            make-empty-document
+
+            compile-single-document
             compileDocument))
 
 (define-immutable-record-type <document>
@@ -48,6 +51,10 @@
   (modules document-modules set-document-modules)
   (env document-env set-document-env)
   (diagnostics document-diagnostics set-document-diagnostics))
+
+(define (make-empty-document uri)
+  (define name (uri->name uri (map path->uri %load-path)))
+  (make-document uri name "" #f #f vlist-null #f '()))
 
 (define (replace-module! name module)
   (define child-name (last name))
