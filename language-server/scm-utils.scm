@@ -33,6 +33,7 @@
 
             uri->name
             path->uri
+            find-name-in-load-path
 
             flatten-pre
             unique))
@@ -108,6 +109,13 @@
         (if (equal? path ".") ;; special case "." so at least that works
           cwd
           (string-append cwd "/" path))))))
+
+(define (find-name-in-load-path name)
+  (find
+    (lambda (file) (file-exists? file))
+    (map
+      (lambda (dir) (string-append dir "/" name))
+      %load-path)))
 
 (define (flatten-pre tree)
   (define (aux node acc)

@@ -30,7 +30,7 @@ If your code does not pass the parser (e.g. due to unbalanced parenthesis), then
 
 ## Shortcomings
 
-- No tests
+- Very few tests
 - Single threaded (compilation will block all other interactions)
 - LSP code is very much only implemented as far as required for it to work and not robust at all
 - Litters your CWD with log files since at the moment there is no way to configure them to be somewhere else

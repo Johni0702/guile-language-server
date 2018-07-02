@@ -96,13 +96,6 @@
       (cons (cons -1 -1) #f)
       tree-il)))
 
-(define (find-name-in-load-path name)
-  (find
-    (lambda (file) (file-exists? file))
-    (map
-      (lambda (dir) (string-append dir "/" name))
-      %load-path)))
-
 (define (name->uri documents name)
   (define document
     (find (lambda (doc) (equal? name (document-name doc)))
