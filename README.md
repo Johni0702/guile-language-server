@@ -27,6 +27,7 @@ If your code does not pass the parser (e.g. due to unbalanced parenthesis), then
 - Jump to definition of top-level procedures
 - Jump to definition of most other top-level variables (on a best effort basis)
 - Jump to definition of local binding (WIP)
+- Whole document formatting (with support for GNU Emacs magic indent comments; same file only for now)
 
 ## Shortcomings
 

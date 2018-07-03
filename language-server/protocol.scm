@@ -32,6 +32,12 @@
             range-start
             range-end
 
+            <text-edit>
+            make-text-edit
+            text-edit?
+            text-edit-range
+            text-edit-text
+
             <location>
             make-location 
             location?
@@ -63,6 +69,7 @@
 
             position->scm
             range->scm
+            text-edit->scm
             location->scm
             diagnostic->scm
 
@@ -89,6 +96,13 @@
   range?
   (start range-start)
   (end range-end))
+
+(define-record-type
+  <text-edit>
+  (make-text-edit range text)
+  text-edit?
+  (range text-edit-range)
+  (text text-edit-text))
 
 (define-record-type
   <location>
@@ -132,6 +146,11 @@
   (match-lambda (($ <range> start end)
                 `((start . ,(position->scm start))
                   (end . ,(position->scm end))))))
+
+(define text-edit->scm
+  (match-lambda (($ <text-edit> range text)
+                `((range . ,(range->scm range))
+                  (newText . ,text)))))
 
 (define location->scm
   (match-lambda (($ <location> uri range)
