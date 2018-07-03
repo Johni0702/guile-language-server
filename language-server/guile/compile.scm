@@ -25,20 +25,22 @@
   #:use-module (system base compile)
   #:use-module (system base language)
 
-  #:export (<document> make-document document?
-            uri document-uri
-            name document-name
-            text document-text set-document-text
-            tree-il document-tree-il set-document-tree-il
-            bytecode document-bytecode set-document-bytecode
-            modules document-modules set-document-modules
-            env document-env set-document-env
-            diagnostics document-diagnostics set-document-diagnostics 
+  #:export (<document> 
+             make-document
+             document?
+                       uri document-uri
+                       name document-name
+                       text document-text set-document-text
+                       tree-il document-tree-il set-document-tree-il
+                       bytecode document-bytecode set-document-bytecode
+                       modules document-modules set-document-modules
+                       env document-env set-document-env
+                       diagnostics document-diagnostics set-document-diagnostics
 
-            make-empty-document
+                       make-empty-document
 
-            compile-single-document
-            compileDocument))
+                       compile-single-document
+                       compileDocument))
 
 (define-immutable-record-type <document>
   (make-document uri name text tree-il bytecode modules env diagnostics)
@@ -71,57 +73,57 @@
       (nested-remove! parent `(,child-name))))
   prev-module)
 
-(define-syntax-rule 
-  (swap-modules! prev-ones new-ones)
+(define-syntax-rule
+    (swap-modules! prev-ones new-ones)
   (set! prev-ones
-    (map (match-lambda 
-           ((name . module) 
-            (display "Replacing module ") (display name)
-            (display " with ") (display module) (newline)
-            (cons name (replace-module! name module))))
-         new-ones)))
+        (map (match-lambda
+               ((name . module)
+                (display "Replacing module ") (display name)
+                (display " with ") (display module) (newline)
+                (cons name (replace-module! name module))))
+             new-ones)))
 
 (define (%with-modules modules thunk)
   (define new-modules (map (lambda (m) (cons (module-name m) m)) modules))
   (define prev-modules '())
   (dynamic-wind
-    (lambda () (swap-modules! prev-modules new-modules))
-    thunk
-    (lambda () (swap-modules! new-modules prev-modules))))
+      (lambda () (swap-modules! prev-modules new-modules))
+      thunk
+      (lambda () (swap-modules! new-modules prev-modules))))
 
 (define-syntax-rule
-  (with-modules modules body ...)
+    (with-modules modules body ...)
   (%with-modules modules (lambda () body ...)))
 
 (define (%track-defined-modules overwritable-modules into thunk)
   (let* ((replaced-modules '())
          (define-module-original (@@ (guile) define-module*))
          (define-module-wrapper
-           (lambda (name . rest)
-             (if (or (not (null? autoloads-in-progress))
-                     (member name overwritable-modules))
-               (begin
-                 (apply define-module-original (cons name rest)))
-               (let* ((replaced-module (replace-module! name #f))
-                      (module (apply define-module-original (cons name rest))))
-                 (set! replaced-modules
-                   (acons name replaced-module replaced-modules))   
-                 (into module)   
-                 module))))
+             (lambda (name . rest)
+               (if (or (not (null? autoloads-in-progress))
+                       (member name overwritable-modules))
+                 (begin
+                   (apply define-module-original (cons name rest)))
+                 (let* ((replaced-module (replace-module! name #f))
+                        (module (apply define-module-original (cons name rest))))
+                   (set! replaced-modules
+                         (acons name replaced-module replaced-modules))
+                   (into module)
+                   module))))
          (result (dynamic-wind
-                   (lambda () 
-                     (set! (@@ (guile) define-module*) define-module-wrapper))
-                   thunk
-                   (lambda () 
-                     (set! (@@ (guile) define-module*) define-module-original)
-                     (for-each (lambda (name+module)
-                                 (replace-module! (car name+module)
-                                                  (cdr name+module)))
-                               replaced-modules)))))
+                     (lambda ()
+                       (set! (@@ (guile) define-module*) define-module-wrapper))
+                     thunk
+                     (lambda ()
+                       (set! (@@ (guile) define-module*) define-module-original)
+                       (for-each (lambda (name+module)
+                                   (replace-module! (car name+module)
+                                                    (cdr name+module)))
+                                 replaced-modules)))))
     result))
 
-(define-syntax-rule 
-  (track-defined-modules overwritable-modules into body ...)
+(define-syntax-rule
+    (track-defined-modules overwritable-modules into body ...)
   (%track-defined-modules overwritable-modules into (lambda () body ...)))
 
 (define nullRange
@@ -131,121 +133,121 @@
 (define (warning-string->diagnostic str)
   (define parts (string-split str #\:))
   (match parts
-	(("WARNING" _ . rest)
-	 (make-diagnostic
-	   nullRange
-	   DiagnosticSeverityWarning
-	   0
-	   "guile"
-	   (string-drop (string-join rest ":") 1)
-	   '()))
+    (("WARNING" _ . rest)
+     (make-diagnostic
+      nullRange
+      DiagnosticSeverityWarning
+      0
+      "guile"
+      (string-drop (string-join rest ":") 1)
+      '()))
     ((_ str-line str-char " warning" . rest)
-	 (define line (- (string->number str-line) 1))
-	 (define char (string->number str-char))
-	 (make-diagnostic
-	   (make-range (make-position line char)
-				   (make-position line (+ char 1)))
-	   DiagnosticSeverityWarning
-	   0
-	   "guile"
-	   (string-drop (string-join rest ":") 1)
-	   '()))
+     (define line (- (string->number str-line) 1))
+     (define char (string->number str-char))
+     (make-diagnostic
+      (make-range (make-position line char)
+                  (make-position line (+ char 1)))
+      DiagnosticSeverityWarning
+      0
+      "guile"
+      (string-drop (string-join rest ":") 1)
+      '()))
     (("") #f)
-	(parts 
-      (display (string-join parts ":"))
-      (newline)
-      #f)))
+    (parts
+     (display (string-join parts ":"))
+     (newline)
+     #f)))
 
 (define (%diagnose-warnings thunk)
   (begin
-	(define result #f)
-	(define warnings-string
-	  (call-with-output-string
-		(lambda (port)
-		  (set! result (parameterize ((current-warning-port port)) (thunk))))))
-	(cons
-	  (filter identity
-			  (map warning-string->diagnostic
-				   (string-split warnings-string #\nl)))
-      result)))
+    (define result #f)
+    (define warnings-string
+      (call-with-output-string
+       (lambda (port)
+         (set! result (parameterize ((current-warning-port port)) (thunk))))))
+    (cons
+     (filter identity
+             (map warning-string->diagnostic
+                  (string-split warnings-string #\nl)))
+     result)))
 
 (define-syntax-rule
-  (diagnose-warnings body ...)
+    (diagnose-warnings body ...)
   (%diagnose-warnings (lambda () body ...)))
 
 (define (%diagnose-errors thunk)
   (define-syntax handle
     (syntax-rules
-      ()
+        ()
       ((handle (key args handler ...) thunk)
        (catch key (lambda () thunk) (lambda args handler ...)))
       ((handle (key args handler ...) handlers ...)
        (catch key (lambda () (handle handlers ...)) (lambda args handler ...)))))
   (define-syntax-rule
-    (ret-error args ...)
+      (ret-error args ...)
     (cons (list (make-diagnostic args ...)) #f))
   (handle
-    (#t (key . args)
-     (ret-error
-       nullRange
-       DiagnosticSeverityError
-       (symbol->string key)
-       "guile"
-       (call-with-output-string
+   (#t (key . args)
+       (ret-error
+        nullRange
+        DiagnosticSeverityError
+        (symbol->string key)
+        "guile"
+        (call-with-output-string
          (lambda (port) (print-exception port #f key args)))
-       '()))
-    ('read-error (_ where text . extra)
-     (match
-       (string-split text #\:)
-       ((_ str-line str-char . rest)
-        (define line (- (string->number str-line) 1))
-        (define char (string->number str-char))
-        (ret-error
-          (make-range (make-position line (- char 1))
-                      (make-position line char))
-          DiagnosticSeverityError
-          where
-          "guile"
-          (string-drop (string-join rest ":") 1)
-          '()))
-       (_ (apply throw (cons* 'read-error where text extra)))))
-    ('syntax-error (_ who what where form subform . extra)
-     (define range
-       (if (eq? where #f)
-         nullRange
-         (let* ((start-position (source-properties->position where))
-                ;; TODO somehow use `form` to generate range
-                (end-position (make-position (position-line start-position)
-                                             (position-char start-position))))
-           (make-range start-position end-position))))
-     (display (cons* who what where form subform extra))
-     (ret-error
-       range
-       DiagnosticSeverityError
-       "syntax-error"
-       "guile"
-       (string-append what ": " (call-with-output-string
-                                  (lambda (port) (write form port))))
-       '()))
-    (cons '() (thunk))))
+        '()))
+   ('read-error (_ where text . extra)
+                (match
+                    (string-split text #\:)
+                  ((_ str-line str-char . rest)
+                   (define line (- (string->number str-line) 1))
+                   (define char (string->number str-char))
+                   (ret-error
+                    (make-range (make-position line (- char 1))
+                                (make-position line char))
+                    DiagnosticSeverityError
+                    where
+                    "guile"
+                    (string-drop (string-join rest ":") 1)
+                    '()))
+                  (_ (apply throw (cons* 'read-error where text extra)))))
+   ('syntax-error (_ who what where form subform . extra)
+                  (define range
+                    (if (eq? where #f)
+                      nullRange
+                      (let* ((start-position (source-properties->position where))
+                             ;; TODO somehow use `form` to generate range
+                             (end-position (make-position (position-line start-position)
+                                                          (position-char start-position))))
+                        (make-range start-position end-position))))
+                  (display (cons* who what where form subform extra))
+                  (ret-error
+                   range
+                   DiagnosticSeverityError
+                   "syntax-error"
+                   "guile"
+                   (string-append what ": " (call-with-output-string
+                                             (lambda (port) (write form port))))
+                   '()))
+   (cons '() (thunk))))
 
 (define-syntax-rule
-  (diagnose-errors body ...)
+    (diagnose-errors body ...)
   (%diagnose-errors (lambda () body ...)))
 
 (define (diagnose-compile src existing-modules . args)
   (define modules '())
   (match
-    (diagnose-warnings
-      (diagnose-errors
+      (diagnose-warnings
+       (diagnose-errors
         (with-modules
-          (vhash-values existing-modules)
-          (track-defined-modules
-            (vhash-keys existing-modules)
-            (lambda (module) (set! modules (cons module modules)))
-            (if (port? src)
-              (apply read-and-compile (cons src args))
-              (apply compile (cons src args)))))))
+         (vhash-values existing-modules)
+         (track-defined-modules
+          (vhash-keys existing-modules)
+          (lambda (module) (set! modules (cons module modules)))
+          (if (port? src)
+            (apply read-and-compile (cons src args))
+            (apply compile (cons src args)))))))
     ((warnings errors . result)
      (list (append errors warnings)
            (alist->vhash (map (lambda (m) (cons (module-name m) m)) modules))
@@ -255,11 +257,11 @@
   (define env (default-environment (current-language)))
   (display "Compiling ") (display (document-uri document)) (newline)
   (match
-    (call-with-input-string
-      (document-text document)
-      (lambda (port)
-        (set-port-filename! port (document-name document))
-        (diagnose-compile
+      (call-with-input-string
+       (document-text document)
+       (lambda (port)
+         (set-port-filename! port (document-name document))
+         (diagnose-compile
           port
           (vhash-remove-all (document-modules document) all-modules)
           #:to 'tree-il
@@ -272,18 +274,18 @@
        ;;        So for now, we cheat and assume the environment to be the
        ;;        first registered module.
        (match (vhash->alist modules)
-              (() env)
-              (lst (cdr (last lst)))))
+         (() env)
+         (lst (cdr (last lst)))))
      (match
-       (if tree-il
-         (diagnose-compile
-           tree-il
-           (vhash-put-all modules all-modules)
-           #:from 'tree-il
-           #:to 'bytecode
-           #:env cenv
-           #:opts %auto-compilation-options)
-         '(() #f #f))
+         (if tree-il
+           (diagnose-compile
+            tree-il
+            (vhash-put-all modules all-modules)
+            #:from 'tree-il
+            #:to 'bytecode
+            #:env cenv
+            #:opts %auto-compilation-options)
+           '(() #f #f))
        ((diagnostics-tree-il _ bytecode)
         (define diagnostics (append diagnostics-scm diagnostics-tree-il))
         (display "Diagnostics: ") (display diagnostics) (newline)
@@ -295,48 +297,48 @@
         (newline)
         ;; Finally compile to value (i.e. run) to allow xref to function.
         (diagnose-compile
-          bytecode
-          (vhash-put-all modules all-modules)
-          #:from 'bytecode
-          #:to 'value
-          #:env cenv ;; FIXME: use proper cenv (see above)
-          #:opts %auto-compilation-options)
+         bytecode
+         (vhash-put-all modules all-modules)
+         #:from 'bytecode
+         #:to 'value
+         #:env cenv ;; FIXME: use proper cenv (see above)
+         #:opts %auto-compilation-options)
         (cons modules
-          (set-fields
-            document
-            ((document-modules) modules)
-            ((document-diagnostics) diagnostics)
-            ((document-env) cenv)
-            ((document-bytecode) bytecode)
-            ((document-tree-il) tree-il))))))))
+              (set-fields
+               document
+               ((document-modules) modules)
+               ((document-diagnostics) diagnostics)
+               ((document-env) cenv)
+               ((document-bytecode) bytecode)
+               ((document-tree-il) tree-il))))))))
 
 (define (build-dependents-tree all-modules all-documents document)
   (define modules-in-document (vhash-keys (document-modules document)))
-  (define dependent-modules 
-    (vhash-filter 
-      (lambda (name module) 
-        (define deps (map module-name (module-uses module)))
-        (any (lambda (m) (member m deps)) modules-in-document))
-      all-modules))
-  (cons 
-    document
-    (vhash-values
-      (vhash-map
-        (lambda (name module)
-          (define document (vhash-fold
-                             (lambda (uri document acc)
-                               (if (vhash-ref (document-modules document) name)
-                                 document
-                                 acc))
-                             #f
-                             all-documents))
-          (build-dependents-tree all-modules all-documents document))
-        dependent-modules))))
+  (define dependent-modules
+    (vhash-filter
+     (lambda (name module)
+       (define deps (map module-name (module-uses module)))
+       (any (lambda (m) (member m deps)) modules-in-document))
+     all-modules))
+  (cons
+   document
+   (vhash-values
+    (vhash-map
+     (lambda (name module)
+       (define document (vhash-fold
+                         (lambda (uri document acc)
+                           (if (vhash-ref (document-modules document) name)
+                             document
+                             acc))
+                         #f
+                         all-documents))
+       (build-dependents-tree all-modules all-documents document))
+     dependent-modules))))
 
 (define (compileDocument all-modules all-documents document)
   (define build-plan
     (unique (flatten-pre (build-dependents-tree
-                           all-modules all-documents document))))
+                          all-modules all-documents document))))
   (display "Update for ") (display (document-uri document)) (newline)
   (display "Build plan: ") (display (map document-uri build-plan)) (newline)
   (fold

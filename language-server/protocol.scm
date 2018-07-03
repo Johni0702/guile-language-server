@@ -39,7 +39,7 @@
             text-edit-text
 
             <location>
-            make-location 
+            make-location
             location?
             location-uri
             location-range
@@ -83,36 +83,31 @@
 
 (define RequestCancelled -32800)
 
-(define-record-type
-  <position>
+(define-record-type <position>
   (make-position line char)
   position?
   (line position-line)
   (char position-char))
 
-(define-record-type
-  <range>
+(define-record-type <range>
   (make-range start end)
   range?
   (start range-start)
   (end range-end))
 
-(define-record-type
-  <text-edit>
+(define-record-type <text-edit>
   (make-text-edit range text)
   text-edit?
   (range text-edit-range)
   (text text-edit-text))
 
-(define-record-type
-  <location>
+(define-record-type <location>
   (make-location uri range)
   location?
   (uri location-uri)
   (range location-range))
 
-(define-record-type
-  <diagnostic>
+(define-record-type <diagnostic>
   (make-diagnostic range severity code source message relatedInfo)
   diagnostic?
   (range diagnostic-range)
@@ -127,8 +122,7 @@
 (define DiagnosticSeverityInformation 3)
 (define DiagnosticSeverityHint 4)
 
-(define-record-type
-  <textDocument>
+(define-record-type <textDocument>
   (make-textDocument uri languageId version text)
   textDocument?
   (uri textDocument-uri)
@@ -139,45 +133,46 @@
 
 (define position->scm
   (match-lambda (($ <position> line char)
-                `((line . ,line)
-                  (character . ,char)))))
+                 `((line . ,line)
+                   (character . ,char)))))
 
 (define range->scm
   (match-lambda (($ <range> start end)
-                `((start . ,(position->scm start))
-                  (end . ,(position->scm end))))))
+                 `((start . ,(position->scm start))
+                   (end . ,(position->scm end))))))
 
 (define text-edit->scm
   (match-lambda (($ <text-edit> range text)
-                `((range . ,(range->scm range))
-                  (newText . ,text)))))
+                 `((range . ,(range->scm range))
+                   (newText . ,text)))))
 
 (define location->scm
   (match-lambda (($ <location> uri range)
-                `((uri . ,uri)
-                  (range . ,(range->scm range))))))
+                 `((uri . ,uri)
+                   (range . ,(range->scm range))))))
 
 (define diagnostic->scm
   (match-lambda (($ <diagnostic> range severity code source message relatedInfo)
-                `((range . ,(range->scm range))
-                  (severity . ,severity)
-                  (code . ,code)
-                  (source . ,source)
-                  (message . ,message)
-                  ;; TODO relatedInfo
-                  ))))
+                 `((range . ,(range->scm range))
+                   (severity . ,severity)
+                   (code . ,code)
+                   (source . ,source)
+                   (message . ,message)
+                   ;; TODO relatedInfo
+                   ))))
+
 
 (define (scm->position obj)
   (make-position
-    (hash-ref obj "line")
-    (hash-ref obj "character")))
+   (hash-ref obj "line")
+   (hash-ref obj "character")))
 
 (define (scm->textDocument obj)
   (make-textDocument
-    (hash-ref obj "uri")
-    (hash-ref obj "languageId")
-    (hash-ref obj "version")
-    (hash-ref obj "text")))
+   (hash-ref obj "uri")
+   (hash-ref obj "languageId")
+   (hash-ref obj "version")
+   (hash-ref obj "text")))
 
 
 (define (source-properties->position where)
@@ -185,7 +180,8 @@
 
 
 (define (sendRegisterCapability port . registrations)
-  (sendMessage port `((id . #nil) ;; FIXME: handle response
+  (sendMessage port `(;; FIXME: handle response
+                      (id . #nil)
                       (method . "client/registerCapability")
                       (params . ((registrations . ,registrations))))))
 

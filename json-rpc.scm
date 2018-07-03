@@ -1,51 +1,49 @@
 (define-module (json-rpc)
-               #:use-module (web http)
-               #:use-module (srfi srfi-9)
-               #:use-module (ice-9 binary-ports)
-               #:use-module (rnrs bytevectors)
-               #:use-module (ice-9 iconv)
-               #:use-module (json)
+  #:use-module (web http)
+  #:use-module (srfi srfi-9)
+  #:use-module (ice-9 binary-ports)
+  #:use-module (rnrs bytevectors)
+  #:use-module (ice-9 iconv)
+  #:use-module (json)
 
-               #:export (<response>
-                         make-response
-                         response?
-                         response-id
-                         response-result
-                         response-error
+  #:export (<response>
+            make-response
+            response?
+            response-id
+            response-result
+            response-error
 
-                         <request>
-                         make-request
-                         request?
-                         request-id
-                         request-method
-                         request-params
+            <request>
+            make-request
+            request?
+            request-id
+            request-method
+            request-params
 
-                         readMessage
-                         sendMessage
-                         sendResult
-                         sendError
-                         sendNotification
+            readMessage
+            sendMessage
+            sendResult
+            sendError
+            sendNotification
 
-                         ParseError
-                         InvalidRequest
-                         MethodNotFound
-                         InvalidParams
-                         InternalError
-                         ServerErrorStart
-                         ServerErrorEnd
-                         ServerNotInitialized
-                         UnknownErrorCode))
+            ParseError
+            InvalidRequest
+            MethodNotFound
+            InvalidParams
+            InternalError
+            ServerErrorStart
+            ServerErrorEnd
+            ServerNotInitialized
+            UnknownErrorCode))
 
-(define-record-type
-  <response>
+(define-record-type <response>
   (make-response id result error)
   response?
   (id response-id)
   (result response-result)
   (error response-error))
 
-(define-record-type
-  <request>
+(define-record-type <request>
   (make-request id method params)
   request?
   (id request-id)
@@ -93,25 +91,25 @@
   (bytevector->string (get-bytevector-n port len) encoding))
 
 (define (parseContent content)
-  (define root (json-string->scm content)) 
+  (define root (json-string->scm content))
   ;; TODO verify jsonrpc version
   (if (eq? (hash-ref root "method") #f)
     (make-response
-      (hash-ref root "id")
-      (hash-ref root "result")
-      (hash-ref root "error"))
+     (hash-ref root "id")
+     (hash-ref root "result")
+     (hash-ref root "error"))
     (make-request
-      (hash-ref root "id")
-      (hash-ref root "method")
-      (hash-ref root "params"))))
+     (hash-ref root "id")
+     (hash-ref root "method")
+     (hash-ref root "params"))))
 
 (define (readMessage port)
   (define headers (readHeaders port))
   (define content (readContent headers port))
   (define tmp (parseContent content))
-  (display tmp)(display "\n")
-  tmp)
+  (display tmp) (display "\n")
   ;(parseContent content))
+  tmp)
 
 (define (sendMessage port response)
   (define json (cons '(jsonrpc . "2.0") response))
@@ -119,9 +117,9 @@
   (define body (string->bytevector (scm->json-string json) encoding))
   (define header-string
     (string-append
-      "Content-Length: " (number->string (bytevector-length body)) "\r\n"
-      "Content-Type: application/vscode-jsonrpc; charset=" encoding "\r\n"
-      "\r\n"))
+     "Content-Length: " (number->string (bytevector-length body)) "\r\n"
+     "Content-Type: application/vscode-jsonrpc; charset=" encoding "\r\n"
+     "\r\n"))
   (define header (string->bytevector header-string "ascii"))
   (put-bytevector port header)
   (put-bytevector port body)
@@ -143,9 +141,9 @@
 
 (define* (sendError port requestId errorId errorMessage #:optional (data #nil))
   (define error
-	`((code . ,errorId)
-	  (message . ,errorMessage)
-	  ,@(if (eq? data #nil) '() `(data . ,data))))
+    `((code . ,errorId)
+      (message . ,errorMessage)
+      ,@(if (eq? data #nil) '() `(data . ,data))))
   (sendMessage port `((id . ,requestId) (error . ,error))))
 
 (define (sendResult port requestId result)

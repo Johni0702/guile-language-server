@@ -46,17 +46,17 @@
 (define (tree-il-fold-with-source down up init tree-il)
   "tree-il-fold with an additional src as the first parameter to down and up."
   (cdr (tree-il-fold
-    (lambda (x acc)
-      (define x-src (tree-il-src x))
-      (define src-stack (cons x-src (car acc)))
-      (define best-src (find identity src-stack))
-      (cons src-stack (down best-src x (cdr acc))))
-    (lambda (x acc)
-      (define src-stack (car acc))
-      (define best-src (find identity src-stack))
-      (cons (cdr src-stack) (down best-src x (cdr acc))))
-    (cons '() init)
-    tree-il)))
+        (lambda (x acc)
+          (define x-src (tree-il-src x))
+          (define src-stack (cons x-src (car acc)))
+          (define best-src (find identity src-stack))
+          (cons src-stack (down best-src x (cdr acc))))
+        (lambda (x acc)
+          (define src-stack (car acc))
+          (define best-src (find identity src-stack))
+          (cons (cdr src-stack) (down best-src x (cdr acc))))
+        (cons '() init)
+        tree-il)))
 
 (define (get-ref-at document position)
   (define target-line (position-line position))
@@ -65,36 +65,35 @@
   (define word (string->symbol (get-word-at document position)))
   (display "Word at position: ") (display word) (newline)
   (cdr
-    (tree-il-fold-with-source
-      (lambda (src x result)
-        (define src-position (source-properties->position src))
-        (define src-line (position-line src-position))
-        (define src-char (position-char src-position))
-        (define name (match
-                       x
-                       (($ <toplevel-ref> _ name) name)
-                       (($ <lexical-ref> _ name _) name)
-                       (_ #f)))
-        (if (and
-              ;; Only consider exact matches
-              (equal? name word)
-              ;; And only if we got a line+char
-              src-line src-char
-              ;; which is strictly before the target location
-              (<= src-line target-line)
-              (<= src-char target-char)
-              ;; but as close as possible (with more weight on line)
-              (or (> src-line (cdar result))
-                  (and (= src-line (cdar result))
-                       (> src-char (caar result)))))
-          (begin
-            (display "Found reference ") (display x)
-            (display " at ") (display src-position) (newline)
-            (cons (cons src-char src-line) x))
-          result))
-      (lambda (x result) result)
-      (cons (cons -1 -1) #f)
-      tree-il)))
+   (tree-il-fold-with-source
+    (lambda (src x result)
+      (define src-position (source-properties->position src))
+      (define src-line (position-line src-position))
+      (define src-char (position-char src-position))
+      (define name (match x
+                     (($ <toplevel-ref> _ name) name)
+                     (($ <lexical-ref> _ name _) name)
+                     (_ #f)))
+      (if (and
+           ;; Only consider exact matches
+           (equal? name word)
+           ;; And only if we got a line+char
+           src-line src-char
+           ;; which is strictly before the target location
+           (<= src-line target-line)
+           (<= src-char target-char)
+           ;; but as close as possible (with more weight on line)
+           (or (> src-line (cdar result))
+               (and (= src-line (cdar result))
+                    (> src-char (caar result)))))
+        (begin
+          (display "Found reference ") (display x)
+          (display " at ") (display src-position) (newline)
+          (cons (cons src-char src-line) x))
+        result))
+    (lambda (x result) result)
+    (cons (cons -1 -1) #f)
+    tree-il)))
 
 (define (name->uri documents name)
   (define document
@@ -110,40 +109,39 @@
   (display "Looking for gensym ") (display gensym) (display " in tree-il of ")
   (display (document-uri document)) (newline)
   (tree-il-fold-with-source
-    (lambda (src x result)
-      (match
-        x
-        ((or ($ <let> _ _ (= has-gensym #t) _ _)
-             ($ <letrec> _ _ _ (= has-gensym #t) _ _)
-             ($ <lambda-case> _ _ _ _ _ _ (= has-gensym #t) _ _)
-             ($ <fix> _ _ (= has-gensym #t) _ _)
-             ;; Note: The documentation on <let-values> doesn't match up with
-             ;;       the implementation. It seems to only ever be generated
-             ;;       when compiling from, not to tree-il, for Scheme at least.
-             ;;       <fix> also seems to never be generated but the doc
-             ;;       matches the implementation, so it has been included here.
-             )
-         (display "Found one: ") (display x) (newline)
-         src)
-        (_ result)))
-    (lambda (src x result) result)
-    #f
-    (document-tree-il document)))
+   (lambda (src x result)
+     (match x
+       ((or ($ <let> _ _ (= has-gensym #t) _ _)
+            ($ <letrec> _ _ _ (= has-gensym #t) _ _)
+            ($ <lambda-case> _ _ _ _ _ _ (= has-gensym #t) _ _)
+            ($ <fix> _ _ (= has-gensym #t) _ _)
+            ;; Note: The documentation on <let-values> doesn't match up with
+            ;;       the implementation. It seems to only ever be generated
+            ;;       when compiling from, not to tree-il, for Scheme at least.
+            ;;       <fix> also seems to never be generated but the doc
+            ;;       matches the implementation, so it has been included here.
+            )
+
+        (display "Found one: ") (display x) (newline)
+        src)
+       (_ result)))
+   (lambda (src x result) result)
+   #f
+   (document-tree-il document)))
 
 (define (find-tree-il-toplevel-define document name)
   (display "Looking for ") (display name) (display " in tree-il of ")
   (display (document-uri document)) (newline)
   (tree-il-fold-with-source
-    (lambda (src x result)
-      (match
-        x
-        (($ <toplevel-define> _ (= (lambda (n) (eq? n name)) #t) _)
-         (display "Found one: ") (display x) (newline)
-         src)
-        (_ result)))
-    (lambda (src x result) result)
-    #f
-    (document-tree-il document)))
+   (lambda (src x result)
+     (match x
+       (($ <toplevel-define> _ (= (lambda (n) (eq? n name)) #t) _)
+        (display "Found one: ") (display x) (newline)
+        src)
+       (_ result)))
+   (lambda (src x result) result)
+   #f
+   (document-tree-il document)))
 
 (define (interface->module interface-or-module)
   (resolve-module (module-name interface-or-module) #f #:ensure #f))
@@ -151,10 +149,9 @@
 (define (module->document documents module)
   (if module
     (let* ((name (module-name module))
-           (document
-             (find
-               (lambda (document) (vhash-ref (document-modules document) name))
-               documents)))
+           (document (find (lambda (document)
+                             (vhash-ref (document-modules document) name))
+                           documents)))
       (if document
         document
         (begin
@@ -167,8 +164,7 @@
                  (text (call-with-input-file path get-string-all))
                  (filled-document (set-document-text empty-document text)))
             (cdr (compile-single-document vlist-null vlist-null
-                                          filled-document)))))
-      )
+                                          filled-document))))))
     #f))
 
 (define (find-toplevel-definition documents document name)
@@ -181,17 +177,13 @@
   (define proc (module-ref module name #f))
   (if (program? proc)
     ;; For executable code, guile already stores source locations for debugging
-    (match
-      (program-source proc 0)
+    (match (program-source proc 0)
       ((_ name start-line . start-char)
-       (match
-         (last (program-sources proc))
+       (match (last (program-sources proc))
          ((_ _ end-line . end-char)
-          (make-location
-            (name->uri documents name)
-            (make-range
-              (make-position start-line start-char)
-              (make-position end-line end-char))))))
+          (make-location (name->uri documents name)
+                         (make-range (make-position start-line start-char)
+                                     (make-position end-line end-char))))))
       ;; No jumping to C code (or whatever else can cause this) for now
       (#f #f))
     ;; For non-procedure toplevels try looking at tree-ils.
@@ -200,39 +192,36 @@
     ;; FIXME: doesn't respect duplicate binding handler
     ;; FIXME: ignores custom binder
     (and=>
-      (module->document
-        (vhash-values documents)
-        (or (if (hashq-ref (module-obarray module) name) module #f)
-            (find-mapped
-              (lambda (module)
-                (if (module-variable module name) module #f))
-              (module-uses module))))
-      (lambda (document)
-        (and=>
-          (find-tree-il-toplevel-define document name)
-          (lambda (src-pos)
-            (define position (source-properties->position src-pos))
-            (display "Result: ") (display src-pos) (newline)
-            (make-location
-              (document-uri document)
-              (make-range position position))))))))
+     (module->document
+      (vhash-values documents)
+      (or (if (hashq-ref (module-obarray module) name) module #f)
+          (find-mapped (lambda (module)
+                         (if (module-variable module name) module #f))
+                       (module-uses module))))
+     (lambda (document)
+       (and=>
+        (find-tree-il-toplevel-define document name)
+        (lambda (src-pos)
+          (define position (source-properties->position src-pos))
+          (display "Result: ") (display src-pos) (newline)
+          (make-location
+           (document-uri document)
+           (make-range position position))))))))
 
 (define (find-definition documents document position)
   (define ref (get-ref-at document position))
-  (define result (match 
-                   ref
-                   (($ <toplevel-ref> _ name) 
+  (define result (match ref
+                   (($ <toplevel-ref> _ name)
                     (find-toplevel-definition documents document name))
                    (($ <lexical-ref> _ _ gensym)
                     (and=>
-                      (and=>
-                        (find-lexical-definition document gensym)
-                        source-properties->position)
-                      (lambda (position)
-                        (display "Result: ") (display position) (newline)
-                        (make-location
-                          (document-uri document)
-                          (make-range position position)))))
+                     (and=>
+                      (find-lexical-definition document gensym)
+                      source-properties->position)
+                     (lambda (position)
+                       (display "Result: ") (display position) (newline)
+                       (make-location
+                        (document-uri document)
+                        (make-range position position)))))
                    (#f #f)))
   result)
-

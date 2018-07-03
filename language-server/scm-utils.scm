@@ -46,18 +46,18 @@
 
 (define (vhash-ref vhash key) (and=> (vhash-assoc key vhash) cdr))
 
-(define (vhash-put-all from vhash) 
+(define (vhash-put-all from vhash)
   (vhash-fold
-    (lambda (key value result) (vhash-put key value result))
-    vhash
-    from))
+   (lambda (key value result) (vhash-put key value result))
+   vhash
+   from))
 
-(define (vhash-remove-all to-be-removed vhash) 
+(define (vhash-remove-all to-be-removed vhash)
   (vhash-filter
-    (lambda (key _) (not (vhash-ref to-be-removed key)))
-    vhash))
+   (lambda (key _) (not (vhash-ref to-be-removed key)))
+   vhash))
 
-(define (vhash-put key value vhash) 
+(define (vhash-put key value vhash)
   (vhash-cons key value (vhash-delete key vhash)))
 
 (define (vhash-filter proc vhash)
@@ -87,35 +87,35 @@
 (define (uri->name uri path)
   ;; Find longest matching prefix of uri in path and use remaining part of uri
   (string-drop
-    uri
-    (+ 1 (string-length
-           (fold
-             (lambda (prefix best-prefix)
-               (if (and (> (string-length prefix) (string-length best-prefix))
-                        (string-prefix? prefix uri))
-                 prefix
-                 best-prefix))
-             "file://"
-             path)))))
+   uri
+   (+ 1 (string-length
+         (fold
+          (lambda (prefix best-prefix)
+            (if (and (> (string-length prefix) (string-length best-prefix))
+                     (string-prefix? prefix uri))
+              prefix
+              best-prefix))
+          "file://"
+          path)))))
 
 (define (path->uri path)
   (string-append
-    "file://"
-    (if (absolute-file-name? path)
-      path
-      ;; FIXME: breaks for any non-trivial relative path i.e. ones with dot(s)
-      ;;        also assumes (getcwd) to be absolute (which might not be true?)
-      (let ((cwd (getcwd)))
-        (if (equal? path ".") ;; special case "." so at least that works
-          cwd
-          (string-append cwd "/" path))))))
+   "file://"
+   (if (absolute-file-name? path)
+     path
+     ;; FIXME: breaks for any non-trivial relative path i.e. ones with dot(s)
+     ;;        also assumes (getcwd) to be absolute (which might not be true?)
+     (let ((cwd (getcwd)))
+       (if (equal? path ".") ;; special case "." so at least that works
+         cwd
+         (string-append cwd "/" path))))))
 
 (define (find-name-in-load-path name)
   (find
-    (lambda (file) (file-exists? file))
-    (map
-      (lambda (dir) (string-append dir "/" name))
-      %load-path)))
+   (lambda (file) (file-exists? file))
+   (map
+    (lambda (dir) (string-append dir "/" name))
+    %load-path)))
 
 (define (flatten-pre tree)
   (define (aux node acc)

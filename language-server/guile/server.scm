@@ -42,20 +42,20 @@
   (define old-document (or (vhash-ref old-documents uri)
                            (make-empty-document uri)))
   (define new-document (set-document-text old-document text))
-  (match
-    (compileDocument old-modules old-documents new-document)
+  (match (compileDocument old-modules old-documents new-document)
     ((new-modules . new-documents)
      (vhash-for-each
-       (lambda (uri document) 
-         ;; FIXME: only send for changed documents
-         (display "Sending diagnostics for ") (display (document-uri document)) (newline)
-         (display (document-diagnostics document)) (newline)
-         (sendDiagnostics out uri (document-diagnostics document)))
-       new-documents)
+      (lambda (uri document)
+        ;; FIXME: only send for changed documents
+        (display "Sending diagnostics for ")
+        (display (document-uri document)) (newline)
+        (display (document-diagnostics document)) (newline)
+        (sendDiagnostics out uri (document-diagnostics document)))
+      new-documents)
      (set-fields
-       state
-       ((state-modules) new-modules)
-       ((state-documents) new-documents)))))
+      state
+      ((state-modules) new-modules)
+      ((state-documents) new-documents)))))
 
 (define (handleInitialize in out id params)
   (define rootUri (hash-ref params "rootUri")) ;; FIXME: handle rootPath
@@ -70,13 +70,12 @@
 
 (define (handleInitialized out)
   (define guile-document-selector `(((language . "guile"))))
-  (sendRegisterCapability out
-                          `((id . "1")
-                            (method . "textDocument/didChange")
-                            (registerOptions
-                              . ((textDocumentSelector
-                                   . ,guile-document-selector)
-                                 (syncKind . 1))))))
+  (sendRegisterCapability
+   out
+   `((id . "1")
+     (method . "textDocument/didChange")
+     (registerOptions . ((textDocumentSelector . ,guile-document-selector)
+                         (syncKind . 1))))))
 
 (define (waitForInit in out)
   (match (readMessage in)
@@ -103,13 +102,13 @@
       (($ <request> id "shutdown" _)
        (sendResult out id #nil)
        (set-state-shutdown? state #t))
-      (($ <request> #f "textDocument/didOpen" params) 
+      (($ <request> #f "textDocument/didOpen" params)
        (define textDocument (scm->textDocument (hash-ref params "textDocument")))
        (define uri (textDocument-uri textDocument))
        (define text (textDocument-text textDocument))
        (display "textDocument/didOpen: ") (display uri) (newline)
        (updateDocument out state uri text))
-      (($ <request> #f "textDocument/didChange" params) 
+      (($ <request> #f "textDocument/didChange" params)
        (define versioned-text-document-id (hash-ref params "textDocument"))
        (define version (hash-ref versioned-text-document-id "version"))
        (define uri (hash-ref versioned-text-document-id "uri"))
@@ -136,20 +135,20 @@
        (display "textDocument/formatting ") (display uri) (newline)
        (let* ((old-text (document-text document))
               (full-range (make-range
-                            (make-position 0 0)
-                            (make-position (+ 1 (string-count old-text
-                                                              #\newline))
-                                           0)))
+                           (make-position 0 0)
+                           (make-position (+ 1 (string-count old-text
+                                                             #\newline))
+                                          0)))
               (escm (string->escm-list old-text))
               (new-text (escm-list->indented-string escm))
               (text-edit (make-text-edit full-range new-text)))
          (sendResult out id (list (text-edit->scm text-edit))))
        state)
-      (($ <request> #f method _) 
-	   (display (string-append "Got notification with unknown method: " method "\n"))
+      (($ <request> #f method _)
+       (display (string-append "Got notification with unknown method: " method "\n"))
        state)
       (($ <request> id method _)
-	   (display (string-append "Got request for unknown method: " method "\n"))
+       (display (string-append "Got request for unknown method: " method "\n"))
        (sendError out id MethodNotFound "Method not found")
        state)))
   (if (eq? result #f)
