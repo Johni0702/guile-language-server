@@ -19,8 +19,13 @@
   #:use-module (ice-9 textual-ports)
 
   #:export (read-expression
+            read-all
             string->escm
+            string->escm-list
             escm->scm))
+
+(define (string->escm-list str)
+  (call-with-input-string str (lambda (port) (read-all port))))
 
 (define (string->escm str)
   (call-with-input-string str (lambda (port) (read-expression port))))
@@ -156,6 +161,14 @@ Return pair of raw data read in form of `((raw . ,data)) and result of `read`."
            (begin
              (unget-char port x)
              (make-escm* src 'sym (read-symbol port))))))))
+
+(define (read-all port)
+  "Read all expressions from port."
+  (let lp ((acc '()))
+    (let ((exp (read-expression port)))
+      (if (eof-object? exp)
+        (reverse acc)
+        (lp (cons exp acc))))))
 
 (define (set-src! obj src)
   "Set the source-properties in src on obj if it supports them."

@@ -15,6 +15,7 @@
 ;;;;
 
 ((@ (tests extended-scheme) test))
+((@ (tests formatter) test))
 
 (newline) (newline)
 (display "All tests passed.")
