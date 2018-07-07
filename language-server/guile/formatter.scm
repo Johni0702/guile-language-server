@@ -274,5 +274,6 @@
                (dynamic-wind 3))))
 
 (define %default-indent
-  (append %guile-default-indent
+  (append '((eval-when . 1))
+          %guile-default-indent
           %emacs-default-indent))
