@@ -16,6 +16,7 @@
 
 (define-module (language-server guile formatter)
   #:use-module (language-server guile extended-scheme)
+  #:use-module (language-server emacs)
   #:use-module (system base compile)
   #:use-module (system base language)
   #:use-module (srfi srfi-1)
@@ -55,13 +56,15 @@
                                      (newline-on-eof? #t)
                                      (emacs-dir-locals-path #f)
                                      (check-for-emacs-magic? #t))
-  (define indent-func
+  (define emacs-evals
     (append (if check-for-emacs-magic?
-              (find-emacs-magic-indents lst)
+              (find-emacs-magic-comments lst)
               '())
             (if emacs-dir-locals-path
-              (read-emacs-dir-locals-rec emacs-dir-locals-path)
-              '())
+              (read-emacs-dir-locals emacs-dir-locals-path 'eval)
+              '())))
+  (define indent-func
+    (append (filter identity (map parse-emacs-indent emacs-evals))
             indent-func*))
   (let format ((tree (cons* 'top '() lst)) (indent 0))
     (match tree
@@ -162,67 +165,6 @@
            (call-with-output-string (lambda (port) (write str port)))))
       (('comment src . str)
        (string-append ";" str)))))
-
-(define (read-emacs-dir-locals-rec dir)
-  (let* ((file-name (string-append dir "/.dir-locals.el"))
-         (parent (string-append dir "/.."))
-         (parent_ino (stat:ino (stat parent)))
-         (current_ino (stat:ino (stat dir))))
-    (append
-     (if (file-exists? file-name)
-       (call-with-input-file file-name read-emacs-dir-locals)
-       '())
-     (if (= current_ino parent_ino)
-       '()
-       (read-emacs-dir-locals-rec parent)))))
-
-(define (read-emacs-dir-locals port)
-  (define parse-node-section
-    (match-lambda
-      ((('eval . rule) . rest)
-       (let ((parsed-rule (parse-emacs-indent rule))
-             (parsed-rest (parse-node-section rest)))
-         (if parsed-rule
-           (cons parsed-rule parsed-rest)
-           parsed-rest)))
-      ((_ . rest)
-       (parse-node-section rest))
-      (_
-       '())))
-  (catch #t
-    (lambda ()
-      (let* ((root (read port))
-             (scheme-mode (assq-ref root 'scheme-mode))
-             (nil-mode (assq-ref root 'nil)))
-        (append (parse-node-section scheme-mode)
-                (parse-node-section nil-mode))))
-    (lambda (key . args)
-      (display "Failed to read emacs-dir-locals from ")
-      (display (port-filename port)) (display ": ")
-      (write key) (display " ") (write args) (newline)
-      '())))
-
-(define (find-emacs-magic-indents lst)
-  (fold (lambda (exp acc)
-          (match exp
-            (('comment _ . str*)
-             (define str (string-trim (string-trim str* #\;) #\space))
-             (define str-exp
-               (or (and (string-prefix? "eval:" str) (string-drop str 5))
-                   (and (string-prefix? "emacs:" str) (string-drop str 6))))
-             (define indent
-               (parse-emacs-indent
-                (catch #t
-                  (lambda () (call-with-input-string str-exp read))
-                  (lambda err #f))))
-             (if indent
-               (cons indent acc)
-               acc))
-            (('sexp _ . exps)
-             (append (find-emacs-magic-indents exps) acc))
-            (_ acc)))
-        '()
-        (cons* 'sexp #f lst)))
 
 (define parse-emacs-indent
   (match-lambda
