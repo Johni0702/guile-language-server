@@ -50,6 +50,28 @@
 (define (last-line str)
   (substring str (or (string-rindex str #\newline) 0)))
 
+;; Some special hash readers read scheme-ish themselves (e.g. #~ in Guix).
+;; We first discover all of them by looking for
+;;  (modify-syntax-entry ?~ ";")
+;; in any .dir-locals.el files, then we re-parse the raw content of any 'hash
+;; expressions and re-format it.
+;; Additionally we do not parse the whole raw content but only the outermost
+;; pair of parenthesis. This is to allow for constructs like
+;;  #$@(some-expr):output
+(define (format-special-hash raw format indent)
+  (let* ((start-index (string-index raw #\())
+         (end-index (string-rindex raw #\)))
+         (prefix (and start-index (substring raw 0 start-index)))
+         (content (and start-index end-index
+                       (substring raw start-index (+ 1 end-index))))
+         (suffix (and end-index (substring raw (+ 1 end-index)))))
+    (if content
+      (string-append prefix
+                     (format (string->escm content)
+                             (+ indent (string-length prefix)))
+                     suffix)
+      raw)))
+
 (define* (escm-list->indented-string lst
                                      #:key
                                      (indent-func* %default-indent)
@@ -66,6 +88,19 @@
   (define indent-func
     (append (filter identity (map parse-emacs-indent emacs-evals))
             indent-func*))
+  ;; see format-special-hash
+  (define special-hashes
+    (filter
+     identity
+     (map (match-lambda
+            (('modify-syntax-entry sym "'")
+             (let ((str (symbol->string sym)))
+               (if (and (= (string-length str) 2)
+                        (eq? (string-ref str 0) #\?))
+                 (string-ref str 1))))
+            (_
+             #f))
+          emacs-evals)))
   (let format ((tree (cons* 'top '() lst)) (indent 0))
     (match tree
       (('top _ . lst)
@@ -157,7 +192,10 @@
       (('unquote-splicing src . content)
        (string-append ",@" (format content (+ 2 indent))))
       (('hash src . content)
-       (assq-ref src 'raw))
+       (let ((raw (assq-ref src 'raw)))
+         (if (member (string-ref raw 1) special-hashes)
+           (format-special-hash raw format indent)
+           raw)))
       (('page src . _)
        "\f")
       (('string src . str)

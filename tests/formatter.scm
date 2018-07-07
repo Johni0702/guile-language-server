@@ -22,7 +22,15 @@
   #:use-module (ice-9 match)
   #:export (test))
 
-(define (test-indent base-indent-str . args)
+(eval-when (expand load eval)
+  (define (read-custom-hash chr port)
+    (read-char port)
+    (read port)
+    (read-char port)
+    #f)
+  (read-hash-extend #\~ read-custom-hash))
+
+(define* (test-indent base-indent-str strip-input . args)
   (define base-indent (string-length (string-drop base-indent-str 1)))
   (define (fix-indent str)
     (match (string-split str #\nl)
@@ -32,7 +40,13 @@
                   rest)))))
   (for-each (lambda (lines)
               (define expected (string-join lines "\n"))
-              (define escm-list (string->escm-list expected))
+              (define input (if strip-input
+                              (string-join
+                               (map (lambda (it) (string-trim it #\space))
+                                    lines)
+                               "\n")
+                              expected))
+              (define escm-list (string->escm-list input))
               (define actual
                 (escm-list->indented-string
                  escm-list
@@ -47,6 +61,7 @@
   (test-indent
    "
     "
+   #t
    "()"
    "(test)"
    "(test a)"
@@ -143,10 +158,19 @@
      `(#:some-key #t
        #:other-key 1
        #:rest '()))"
+   ;; Check formatting inside special hash readers
+   ";; emacs: (modify-syntax-entry ?~ \"'\")
+    (proc
+     #~pcontent) ;; Note: the closing paren here is part of the #~ syntax
+     #~p(proc
+         (scheme inside)
+         #:other-key 1
+         #:rest '())s)"
    "")
 
   (test-indent
    " "
+   #f
    ;; Check that no spaces are inserted on empty lines
    "(test a\n\n      b)"
    ;; Check live Guile files
