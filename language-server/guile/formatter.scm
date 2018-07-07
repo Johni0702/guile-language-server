@@ -30,8 +30,10 @@
   (string-count str #\newline))
 
 (define (comment? escm) (eq? 'comment (car escm)))
+(define (hash? escm) (eq? 'hash (car escm)))
 (define (sym? escm) (eq? 'sym (car escm)))
 (define (get-sym escm) (cddr escm))
+(define (get-hash escm) (cddr escm))
 
 (define (times x n)
   (if (zero? n)
@@ -87,10 +89,12 @@
                       ")"))
       (('sexp src proc first . rest)
        (define proc-sym (and (sym? proc) (get-sym proc)))
+       (define proc-keyword? (and (hash? proc) (keyword? (get-hash proc))))
        (define deep
-         (and proc-sym
-              (or (assq-ref indent-func proc-sym)
-                  (and (string-prefix? "def" (symbol->string proc-sym)) 1))))
+         (or (and proc-sym
+                  (or (assq-ref indent-func proc-sym)
+                      (and (string-prefix? "def" (symbol->string proc-sym)) 1)))
+             (and proc-keyword? 1)))
        (define first-line-offset (- (line first) (line proc)))
        (define proc-formatted (format proc (+ 1 indent)))
        (define end-indent (+ indent
@@ -100,7 +104,7 @@
          (if (and (zero? first-line-offset)
                   (or (not deep) (zero? deep)))
            end-indent
-           (+ indent (if deep 2 1))))
+           (+ indent (if (and deep (not proc-keyword?)) 2 1))))
        (string-append
         "("
         proc-formatted

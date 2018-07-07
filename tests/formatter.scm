@@ -137,6 +137,12 @@
         c)
       (dir-locals-parent a
         b))"
+   ;; Ensure keyword argument lists are indented correctly
+   ;; This isn't vanilla emacs behavior but guix has a patch for it.
+   "(arguments
+     `(#:some-key #t
+       #:other-key 1
+       #:rest '()))"
    "")
 
   (test-indent
