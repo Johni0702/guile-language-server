@@ -36,6 +36,9 @@
               (define actual
                 (escm-list->indented-string
                  escm-list
+                 #:emacs-dir-locals-path (string-append
+                                          (dirname (current-filename))
+                                          "/dir-locals/testing")
                  #:newline-on-eof? (string-suffix? "\n" expected)))
               (assert-equal expected actual))
             (map fix-indent args)))
@@ -128,6 +131,12 @@
      (testing a
        b
        c))"
+   ;; Test emacs .dir-locals.el parsing and application
+   "(dir-locals-nil a
+      (dir-locals-scheme a b
+        c)
+      (dir-locals-parent a
+        b))"
    "")
 
   (test-indent

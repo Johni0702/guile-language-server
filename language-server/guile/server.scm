@@ -140,7 +140,11 @@
                                                              #\newline))
                                           0)))
               (escm (string->escm-list old-text))
-              (new-text (escm-list->indented-string escm))
+              (new-text (escm-list->indented-string
+                         escm
+                         ;; FIXME: always assumes uris of file:// kind
+                         #:emacs-dir-locals-path (dirname
+                                                  (string-drop uri 7))))
               (text-edit (make-text-edit full-range new-text)))
          (sendResult out id (list (text-edit->scm text-edit))))
        state)
