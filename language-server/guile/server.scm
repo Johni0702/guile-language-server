@@ -29,33 +29,27 @@
   #:export (main))
 
 (define-immutable-record-type <state>
-  (make-state rootUri modules documents shutdown?)
+  (make-state rootUri documents shutdown?)
   state?
   (rootUri state-rootUri set-state-rootUri)
-  (modules state-modules set-state-modules)
   (documents state-documents set-state-documents)
   (shutdown? state-shutdown? set-state-shutdown?))
 
 (define (updateDocument out state uri text)
   (define old-documents (state-documents state))
-  (define old-modules (state-modules state))
   (define old-document (or (vhash-ref old-documents uri)
                            (make-empty-document uri)))
   (define new-document (set-document-text old-document text))
-  (match (compileDocument old-modules old-documents new-document)
-    ((new-modules . new-documents)
-     (vhash-for-each
-      (lambda (uri document)
-        ;; FIXME: only send for changed documents
-        (display "Sending diagnostics for ")
-        (display (document-uri document)) (newline)
-        (display (document-diagnostics document)) (newline)
-        (sendDiagnostics out uri (document-diagnostics document)))
-      new-documents)
-     (set-fields
-      state
-      ((state-modules) new-modules)
-      ((state-documents) new-documents)))))
+  (define new-documents (compileDocument old-documents new-document))
+  (vhash-for-each
+   (lambda (uri document)
+     ;; FIXME: only send for changed documents
+     (display "Sending diagnostics for ")
+     (display (document-uri document)) (newline)
+     (display (document-diagnostics document)) (newline)
+     (sendDiagnostics out uri (document-diagnostics document)))
+   new-documents)
+  (set-state-documents state new-documents))
 
 (define (handleInitialize in out id params)
   (define rootUri (hash-ref params "rootUri")) ;; FIXME: handle rootPath
@@ -66,7 +60,7 @@
   ;; FIXME: always assumes uris of file:// kind
   (add-to-load-path (string-drop rootUri 7))
   (sendResult out id `((capabilities . ,serverCapabilities)))
-  (make-state rootUri vlist-null vlist-null #f))
+  (make-state rootUri vlist-null #f))
 
 (define (handleInitialized out)
   (define guile-document-selector `(((language . "guile"))))

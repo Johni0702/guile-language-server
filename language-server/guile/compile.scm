@@ -39,6 +39,8 @@
 
             make-empty-document
 
+            documents-map->modules-map
+
             compile-single-document
             compileDocument))
 
@@ -53,6 +55,11 @@
   (modules document-modules set-document-modules)
   (env document-env set-document-env)
   (diagnostics document-diagnostics set-document-diagnostics))
+
+(define (documents-map->modules-map documents)
+  (fold vhash-put-all
+        vlist-null
+        (map document-modules (vhash-values documents))))
 
 (define (make-empty-document uri)
   (define name (uri->name uri (map path->uri %load-path)))
@@ -253,7 +260,8 @@
            (alist->vhash (map (lambda (m) (cons (module-name m) m)) modules))
            result))))
 
-(define (compile-single-document all-modules all-documents document)
+(define (compile-single-document all-documents document)
+  (define all-modules (documents-map->modules-map all-documents))
   (define env (default-environment (current-language)))
   (display "Compiling ") (display (document-uri document)) (newline)
   (match
@@ -303,23 +311,22 @@
          #:to 'value
          #:env cenv ;; FIXME: use proper cenv (see above)
          #:opts %auto-compilation-options)
-        (cons modules
-              (set-fields
-               document
-               ((document-modules) modules)
-               ((document-diagnostics) diagnostics)
-               ((document-env) cenv)
-               ((document-bytecode) bytecode)
-               ((document-tree-il) tree-il))))))))
+        (set-fields
+         document
+         ((document-modules) modules)
+         ((document-diagnostics) diagnostics)
+         ((document-env) cenv)
+         ((document-bytecode) bytecode)
+         ((document-tree-il) tree-il)))))))
 
-(define (build-dependents-tree all-modules all-documents document)
+(define (build-dependents-tree all-documents document)
   (define modules-in-document (vhash-keys (document-modules document)))
   (define dependent-modules
     (vhash-filter
      (lambda (name module)
        (define deps (map module-name (module-uses module)))
        (any (lambda (m) (member m deps)) modules-in-document))
-     all-modules))
+     (documents-map->modules-map all-documents)))
   (cons
    document
    (vhash-values
@@ -332,24 +339,18 @@
                              acc))
                          #f
                          all-documents))
-       (build-dependents-tree all-modules all-documents document))
+       (build-dependents-tree all-documents document))
      dependent-modules))))
 
-(define (compileDocument all-modules all-documents document)
+(define (compileDocument all-documents document)
   (define build-plan
-    (unique (flatten-pre (build-dependents-tree
-                          all-modules all-documents document))))
+    (unique (flatten-pre (build-dependents-tree all-documents document))))
   (display "Update for ") (display (document-uri document)) (newline)
   (display "Build plan: ") (display (map document-uri build-plan)) (newline)
   (fold
-   (lambda (document acc)
-     (match acc
-       ((all-modules . all-documents)
-        (match (compile-single-document all-modules all-documents document)
-          ((changed-modules . changed-document)
-           (define uri (document-uri changed-document))
-           (cons
-            (vhash-put-all changed-modules all-modules)
-            (vhash-put uri changed-document all-documents)))))))
-   (cons all-modules all-documents)
+   (lambda (document all-documents)
+     (let* ((document (compile-single-document all-documents document))
+            (uri (document-uri document)))
+       (vhash-put uri document all-documents)))
+   all-documents
    build-plan))
