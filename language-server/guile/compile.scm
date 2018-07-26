@@ -25,22 +25,22 @@
   #:use-module (system base compile)
   #:use-module (system base language)
 
-  #:export (<document> 
-             make-document
-             document?
-                       uri document-uri
-                       name document-name
-                       text document-text set-document-text
-                       tree-il document-tree-il set-document-tree-il
-                       bytecode document-bytecode set-document-bytecode
-                       modules document-modules set-document-modules
-                       env document-env set-document-env
-                       diagnostics document-diagnostics set-document-diagnostics
+  #:export (<document>
+            make-document
+            document?
+            uri document-uri
+            name document-name
+            text document-text set-document-text
+            tree-il document-tree-il set-document-tree-il
+            bytecode document-bytecode set-document-bytecode
+            modules document-modules set-document-modules
+            env document-env set-document-env
+            diagnostics document-diagnostics set-document-diagnostics
 
-                       make-empty-document
+            make-empty-document
 
-                       compile-single-document
-                       compileDocument))
+            compile-single-document
+            compileDocument))
 
 (define-immutable-record-type <document>
   (make-document uri name text tree-il bytecode modules env diagnostics)
@@ -342,16 +342,14 @@
   (display "Update for ") (display (document-uri document)) (newline)
   (display "Build plan: ") (display (map document-uri build-plan)) (newline)
   (fold
-    (lambda (document acc)
-      (match
-        acc
-        ((all-modules . all-documents)
-         (match
-           (compile-single-document all-modules all-documents document)
-           ((changed-modules . changed-document)
-            (define uri (document-uri changed-document))
-            (cons
-              (vhash-put-all changed-modules all-modules)
-              (vhash-put uri changed-document all-documents)))))))
-    (cons all-modules all-documents)
-    build-plan))
+   (lambda (document acc)
+     (match acc
+       ((all-modules . all-documents)
+        (match (compile-single-document all-modules all-documents document)
+          ((changed-modules . changed-document)
+           (define uri (document-uri changed-document))
+           (cons
+            (vhash-put-all changed-modules all-modules)
+            (vhash-put uri changed-document all-documents)))))))
+   (cons all-modules all-documents)
+   build-plan))

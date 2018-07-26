@@ -69,8 +69,8 @@
                    (and (string-prefix? "emacs:" str) (string-drop str 6))))
              (define exp
                (catch #t
-                      (lambda () (call-with-input-string str-exp read))
-                      (lambda err #f)))
+                 (lambda () (call-with-input-string str-exp read))
+                 (lambda err #f)))
              (if exp
                (cons exp acc)
                acc))
