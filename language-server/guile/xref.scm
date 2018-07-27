@@ -163,8 +163,7 @@
                  ;; FIXME: for files open in the editor, use its version
                  (text (call-with-input-file path get-string-all))
                  (filled-document (set-document-text empty-document text)))
-            (cdr (compile-single-document vlist-null vlist-null
-                                          filled-document))))))
+            (compile-single-document vlist-null filled-document)))))
     #f))
 
 (define (find-toplevel-definition documents document name)
