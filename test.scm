@@ -14,6 +14,8 @@
 ;;;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ;;;;
 
+(add-to-load-path (dirname (current-filename)))
+
 ((@ (tests extended-scheme) test))
 ((@ (tests formatter) test))
 ((@ (tests compile) test))
