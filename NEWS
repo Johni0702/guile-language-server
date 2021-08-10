@@ -1,0 +1,14 @@
+-*- mode: org; coding: utf-8; -*-
+
+#+TITLE: Guile Language Server NEWS – history of user-visible changes
+#+STARTUP: content hidestars
+
+Copyright © (2018) Jonas Herzig <me@johni0702.de>
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Please send Guile Language Server bug reports to me@johni0702.de.
+
+* Publication at 0.1

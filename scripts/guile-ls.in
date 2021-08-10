@@ -1,4 +1,4 @@
-#!/bin/env guile2.2
+#!@GUILE@
 # vim: ft=scheme.guile
 !#
 
@@ -23,7 +23,6 @@
 
 (current-output-port (open-file "ls.stdout.log" "w0"))
 
-(add-to-load-path (dirname (current-filename)))
 (use-modules (language-server guile server))
 
 (main in out)
